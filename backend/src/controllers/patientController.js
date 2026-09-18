@@ -317,16 +317,20 @@ exports.uploadReport = async (req, res) => {
   const patientId = String(req.user.id || req.user._id);
 
   try {
+    const filename = req.file
+      ? `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+      : (title ? `${title.toLowerCase().replace(/[^a-z0-9]/gi, '_')}.pdf` : 'lab_report.pdf');
+
     const newReport = {
       _id: memoryStore.generateId(),
       patient: patientId,
-      filename: req.file ? req.file.filename : (title ? `${title.toLowerCase().replace(/[^a-z0-9]/gi, '_')}.pdf` : 'lab_report.pdf'),
+      filename,
       originalName: req.file ? req.file.originalname : (title || 'Diagnostic Lab Report.pdf'),
       mimeType: req.file ? req.file.mimetype : 'application/pdf',
       size: req.file ? `${(req.file.size / 1024).toFixed(1)} KB` : `${(Math.random() * 1.5 + 0.5).toFixed(1)} MB`,
       date: new Date(),
       createdAt: new Date(),
-      path: req.file ? `/uploads/${req.file.filename}` : '/uploads/sample_report.pdf'
+      path: `/uploads/${filename}`
     };
 
     if (mongoose.connection.readyState === 1) {

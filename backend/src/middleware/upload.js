@@ -1,37 +1,9 @@
 // src/middleware/upload.js
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
-const os = require('os');
-
-// Use OS temporary directory on serverless/Vercel to prevent read-only filesystem crash
-const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
-const uploadDir = isServerless ? path.join(os.tmpdir(), 'medicare_uploads') : path.resolve(__dirname, '../../uploads');
-
-try {
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-} catch (err) {
-  console.warn('Upload directory initialization skipped/failed:', err.message);
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-    } catch (e) {}
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-  },
-});
+// Use in-memory storage: completely serverless-friendly, zero filesystem writes
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   // Accept only PDFs and images
