@@ -17,8 +17,8 @@ const app = express();
 app.use(require('cookie-parser')());
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like curl, postman) or any localhost/127.0.0.1
-    if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    // Allow requests with no origin (like curl, postman), localhost, and Vercel deployments
+    if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || /\.vercel\.app$/.test(origin)) {
       return callback(null, true);
     }
     return callback(null, true);
