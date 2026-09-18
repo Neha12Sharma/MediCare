@@ -36,6 +36,18 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Connect to DB
 connectDB();
 
+// Ensure DB connection is ready for incoming API requests in serverless
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error('DB connect error in middleware:', err);
+    }
+  }
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/patient', patientRoutes);

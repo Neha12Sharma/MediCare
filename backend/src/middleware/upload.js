@@ -3,14 +3,27 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Use /tmp/uploads on Vercel (read-only filesystem workaround) or local uploads folder
-const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.resolve(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+const os = require('os');
+
+// Use OS temporary directory on serverless/Vercel to prevent read-only filesystem crash
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
+const uploadDir = isServerless ? path.join(os.tmpdir(), 'medicare_uploads') : path.resolve(__dirname, '../../uploads');
+
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('Upload directory initialization skipped/failed:', err.message);
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+    } catch (e) {}
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {

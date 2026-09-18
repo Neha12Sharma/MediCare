@@ -14,10 +14,11 @@ function generateToken(user) {
 
 // Cookie options helper
 function cookieOptions() {
+  const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProd,
+    sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   };
 }
