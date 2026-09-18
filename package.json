@@ -1,0 +1,7 @@
+{
+  "name": "hospital-management-system-root",
+  "private": true,
+  "scripts": {
+    "vercel-build": "npm install --prefix frontend && npm run build --prefix frontend"
+  }
+}
