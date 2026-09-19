@@ -5,10 +5,10 @@ const User = require('../models/User');
 const memoryStore = require('../config/memoryStore');
 require('dotenv').config();
 
-// Verify JWT from httpOnly cookie "token"
+// Verify JWT from httpOnly cookie "token", Authorization header, or query param "token"
 const protect = async (req, res, next) => {
   try {
-    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1] || req.query?.token;
     if (!token) {
       return res.status(401).json({ message: 'Not authorized, token missing' });
     }

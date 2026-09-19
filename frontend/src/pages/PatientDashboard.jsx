@@ -45,12 +45,14 @@ const PatientDashboard = () => {
   const [doctorDetailModalOpen, setDoctorDetailModalOpen] = useState(false);
   const [doctorDetail, setDoctorDetail] = useState(null);
 
-  // Report Upload State
+  // Report Upload & View State
   const [reportTitle, setReportTitle] = useState('');
   const [reportCategory, setReportCategory] = useState('Blood Test');
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = React.useRef(null);
   const [uploadSubmitting, setUploadSubmitting] = useState(false);
+  const [viewReportModalOpen, setViewReportModalOpen] = useState(false);
+  const [viewReportItem, setViewReportItem] = useState(null);
 
   // Profile Edit Form State (Feature 17 Fix)
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -389,6 +391,29 @@ const PatientDashboard = () => {
       showAlert('Failed to upload report file', 'danger');
     } finally {
       setUploadSubmitting(false);
+    }
+  };
+
+  const getReportFileUrl = (r) => {
+    if (!r) return '';
+    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api';
+    const reportId = r._id || r.id || r.filename;
+    return `${base}/patient/reports/${reportId}/view`;
+  };
+
+  const handleOpenReportModal = (r) => {
+    setViewReportItem(r);
+    setViewReportModalOpen(true);
+  };
+
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm('Are you sure you want to delete this medical report?')) return;
+    try {
+      await api.delete(`/patient/reports/${reportId}`);
+      showAlert('Medical report deleted successfully', 'info');
+      fetchData();
+    } catch (err) {
+      showAlert('Failed to delete medical report', 'danger');
     }
   };
 
@@ -973,22 +998,42 @@ const PatientDashboard = () => {
                 <div style={{ color: '#94a3b8', textAlign: 'center', padding: '1.5rem' }}>No reports uploaded yet.</div>
               )}
               {reports.map(r => (
-                <div key={r._id} style={{ background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#0f172a' }}>📄 {r.originalName || r.filename}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Filing Date: {new Date(r.date || r.createdAt).toLocaleDateString()} {r.size ? `• ${r.size}` : ''}</div>
+                <div key={r._id || r.filename} style={{ background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ flex: '1 1 200px' }}>
+                    <div style={{ fontWeight: 700, color: '#0f172a', wordBreak: 'break-word' }}>📄 {r.originalName || r.filename}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Filing Date: {new Date(r.date || r.createdAt || Date.now()).toLocaleDateString()} {r.size ? `• ${r.size}` : ''}</div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                     <span className="badge badge-success">Verified</span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenReportModal(r)}
+                      className="btn btn-outline btn-sm"
+                      style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      👁️ View File
+                    </button>
                     <a
-                      href={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${r.path?.startsWith('/uploads') ? r.path : `/uploads/${r.filename || ''}`}`}
+                      href={getReportFileUrl(r)}
                       target="_blank"
                       rel="noreferrer"
                       className="btn btn-outline btn-sm"
-                      style={{ textDecoration: 'none' }}
+                      style={{ textDecoration: 'none', padding: '0.3rem 0.5rem' }}
+                      title="Open in new window"
                     >
-                      👁️ View File
+                      ↗️
                     </a>
+                    {r._id && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteReport(r._id)}
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '0.3rem 0.6rem', cursor: 'pointer' }}
+                        title="Delete Report"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1568,6 +1613,61 @@ const PatientDashboard = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Medical Report Viewer Modal */}
+      {viewReportModalOpen && viewReportItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: '#fff', borderRadius: '16px', maxWidth: '850px', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a', fontWeight: 800 }}>
+                  📄 {viewReportItem.originalName || viewReportItem.filename}
+                </h3>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '3px' }}>
+                  Filing Date: {new Date(viewReportItem.date || viewReportItem.createdAt || Date.now()).toLocaleDateString()} {viewReportItem.size ? `• Size: ${viewReportItem.size}` : ''}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <a
+                  href={getReportFileUrl(viewReportItem)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary btn-sm"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  ↗️ Open in New Window
+                </a>
+                <button
+                  onClick={() => setViewReportModalOpen(false)}
+                  style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b', lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body / Iframe Preview */}
+            <div style={{ flex: 1, minHeight: '480px', maxHeight: '70vh', background: '#f1f5f9', position: 'relative' }}>
+              <iframe
+                src={getReportFileUrl(viewReportItem)}
+                title={viewReportItem.originalName || viewReportItem.filename}
+                style={{ width: '100%', height: '100%', border: 'none', minHeight: '480px' }}
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '0.85rem 1.5rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                Verified MediCare+ Electronic Health Record
+              </div>
+              <button onClick={() => setViewReportModalOpen(false)} className="btn btn-outline btn-sm">
+                Close Viewer
+              </button>
+            </div>
           </div>
         </div>
       )}
