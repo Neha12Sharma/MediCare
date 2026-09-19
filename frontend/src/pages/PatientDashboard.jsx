@@ -50,6 +50,7 @@ const PatientDashboard = () => {
   const [reportCategory, setReportCategory] = useState('Blood Test');
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = React.useRef(null);
+  const localFileCache = React.useRef({});
   const [uploadSubmitting, setUploadSubmitting] = useState(false);
   const [viewReportModalOpen, setViewReportModalOpen] = useState(false);
   const [viewReportItem, setViewReportItem] = useState(null);
@@ -378,9 +379,19 @@ const PatientDashboard = () => {
       if (selectedFile) {
         formData.append('report', selectedFile);
       }
-      await api.post('/patient/reports', formData, {
+      const res = await api.post('/patient/reports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      if (selectedFile && res.data) {
+        try {
+          const localUrl = URL.createObjectURL(selectedFile);
+          if (res.data._id) localFileCache.current[res.data._id] = localUrl;
+          if (res.data.filename) localFileCache.current[res.data.filename] = localUrl;
+          localFileCache.current[selectedFile.name] = localUrl;
+        } catch (e) {
+          // ignore object url error
+        }
+      }
       showAlert(`Medical report "${selectedFile ? selectedFile.name : titleText}" uploaded successfully!`, 'success');
       setReportTitle('');
       setSelectedFile(null);
@@ -398,11 +409,16 @@ const PatientDashboard = () => {
     if (!r) return '';
     const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api';
     const reportId = r._id || r.id || r.filename;
-    return `${base}/patient/reports/${reportId}/view`;
+    const titleParam = encodeURIComponent(r.originalName || r.filename || 'Diagnostic_Report.pdf');
+    return `${base}/patient/reports/${reportId}/view?title=${titleParam}`;
   };
 
   const handleOpenReportModal = (r) => {
-    setViewReportItem(r);
+    const cachedUrl = localFileCache.current[r._id] || localFileCache.current[r.originalName] || localFileCache.current[r.filename];
+    setViewReportItem({
+      ...r,
+      previewUrl: cachedUrl || getReportFileUrl(r)
+    });
     setViewReportModalOpen(true);
   };
 
@@ -1633,7 +1649,7 @@ const PatientDashboard = () => {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <a
-                  href={getReportFileUrl(viewReportItem)}
+                  href={viewReportItem.previewUrl || getReportFileUrl(viewReportItem)}
                   target="_blank"
                   rel="noreferrer"
                   className="btn btn-primary btn-sm"
@@ -1653,7 +1669,7 @@ const PatientDashboard = () => {
             {/* Modal Body / Iframe Preview */}
             <div style={{ flex: 1, minHeight: '480px', maxHeight: '70vh', background: '#f1f5f9', position: 'relative' }}>
               <iframe
-                src={getReportFileUrl(viewReportItem)}
+                src={viewReportItem.previewUrl || getReportFileUrl(viewReportItem)}
                 title={viewReportItem.originalName || viewReportItem.filename}
                 style={{ width: '100%', height: '100%', border: 'none', minHeight: '480px' }}
               />
